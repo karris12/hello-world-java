@@ -6,10 +6,10 @@ pipeline {
     }
 
     environment {
-        SONARQUBE_URL = 'http://54.224.219.29:9000'
-        NEXUS_URL = '52.23.187.164:8081'
+        SONARQUBE_URL = 'http://54.90.242.8:9000'
+        NEXUS_URL = '34.227.229.138:8081'
         NEXUS_REPO = 'maven-snapshots'
-        TOMCAT_URL = 'http://100.48.223.225:8080'
+        TOMCAT_URL = 'http://34.231.229.138:8080'
         APP_NAME = 'hello-world'
     }
 
