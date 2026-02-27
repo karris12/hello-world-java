@@ -6,11 +6,15 @@ pipeline {
     }
 
     environment {
-        SONARQUBE_URL = 'http://54.90.242.8:9000'
-        NEXUS_URL = '34.227.229.138:8081'
+        SONARQUBE_URL = 'http://98.94.58.93:9000'
+        NEXUS_URL = '3.88.185.106:8081'
         NEXUS_REPO = 'maven-snapshots'
-        TOMCAT_URL = 'http://34.231.229.138:8080'
+        NEXUS_DOCKER_REPO = '3.88.185.106:8085'
+        TOMCAT_URL = 'http://3.239.36.208:8080'
+        DOCKER_SERVER = '44.203.206.111'
         APP_NAME = 'hello-world'
+        IMAGE_NAME = 'hello-world-app'
+        IMAGE_TAG = "v${BUILD_NUMBER}"
     }
 
     stages {
@@ -29,7 +33,6 @@ pipeline {
             }
             post {
                 success {
-                    echo '✅ Build successful!'
                     archiveArtifacts artifacts: 'target/*.war'
                 }
             }
@@ -44,7 +47,7 @@ pipeline {
 
         stage('SonarQube Scan') {
             steps {
-                echo '🔍 Scanning code quality with SonarQube...'
+                echo '🔍 Scanning code quality...'
                 withSonarQubeEnv('SonarQube') {
                     sh 'mvn sonar:sonar -Dsonar.projectKey=hello-world -Dsonar.projectName=HelloWorld'
                 }
@@ -53,7 +56,7 @@ pipeline {
 
         stage('Upload to Nexus') {
             steps {
-                echo '📦 Uploading artifact to Nexus...'
+                echo '📦 Uploading WAR to Nexus...'
                 nexusArtifactUploader(
                     nexusVersion: 'nexus3',
                     protocol: 'http',
@@ -72,18 +75,34 @@ pipeline {
             }
         }
 
-        stage('Deploy to Tomcat') {
+        stage('Docker Build') {
             steps {
-                echo '🚀 Deploying to Tomcat...'
-                deploy(
-                    adapters: [tomcat9(
-                        credentialsId: 'tomcat-credentials',
-                        path: '',
-                        url: "http://34.231.229.138:8080"
-                    )],
-                    contextPath: "${APP_NAME}",
-                    war: "target/${APP_NAME}.war"
-                )
+                echo '🐳 Building Docker image...'
+                sh """
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Docker Deploy') {
+            steps {
+                echo '🚀 Deploying Docker container...'
+                sh """
+                    # Stop and remove existing container if running
+                    docker stop ${APP_NAME} 2>/dev/null || true
+                    docker rm ${APP_NAME} 2>/dev/null || true
+
+                    # Run new container
+                    docker run -d \
+                        --name ${APP_NAME} \
+                        -p 8080:8080 \
+                        --restart always \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    echo '✅ Container started successfully'
+                    docker ps | grep ${APP_NAME}
+                """
             }
         }
     }
@@ -92,11 +111,11 @@ pipeline {
         success {
             echo """
             ✅ Pipeline completed successfully!
-            🌐 App is live at: ${TOMCAT_URL}/${APP_NAME}
+            🐳 Docker container running on: http://${DOCKER_SERVER}:8080
             """
         }
         failure {
-            echo '❌ Pipeline failed — check the Console Output above'
+            echo '❌ Pipeline failed — check Console Output above'
         }
     }
 }
