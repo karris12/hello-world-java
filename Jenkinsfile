@@ -79,7 +79,7 @@ pipeline {
                     adapters: [tomcat9(
                         credentialsId: 'tomcat-credentials',
                         path: '',
-                        url: "${TOMCAT_URL}"
+                        url: 'http://34.231.229.138:8080'
                     )],
                     contextPath: "${APP_NAME}",
                     war: "target/${APP_NAME}.war"
